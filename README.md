@@ -9,9 +9,9 @@ design a **voltage divider** to divide the large voltage into a smaller
 proportional voltage that will fall within the maximum input spec for the *ADC*
 input on the *Atmel* chip.
 
-The reading from the divider input will then be proportional to the true voltage
-we are trying to read, and then it is a simple matter of mathematics to
-calculate the the true voltage value.
+The reading from the divider input will then be proportional to the full input
+voltage we are trying to read, and then it is a simple matter of mathematics to
+calculate the input voltage value.
 
 Circuit example
 ---------------
@@ -40,8 +40,8 @@ Vin o------------------o---------------------------------o
 
 Things to take into account
 ---------------------------
-When creating a voltage to be used in this scenario, the following should be
-taken into account:
+When designing a voltage divider to be used in this scenario, the following
+should be taken into account:
 
   * The larger the resistors, the lower the current through the R1--R2 divider,
     and the less impact it will have on the supply current requirements.
@@ -56,21 +56,21 @@ taken into account:
 Design
 ------
 In order to calculate the best values for the voltage divider, the **maximum
-possible Vin value** should be known.
+possible Vin value** should be known. We will use an example voltage of 18V
+here.
 
 Since the divider values will be calculated to get Vout as close as possible to
 5V with Vin at it's max value, it is possible that Vout will go above the max
 allowed ADC input value of 5V should Vin exceed the max expected voltage. When
 in doubt, rather allow for a slightly larger Vin max value and loose a tiny bit
-of accuracy that loosing arduino!
+of accuracy that loosing an *Arduino*!
 
-A good starting point is to select a value for R2 less than 10k, but still high
-enough to minimize the current through the divider. I normally for a value of
-8k2 for this resistor.
+Start by selecting a value for R2 less than 10k, but still high enough to minimize
+the current through the divider. I normally use a value of 8k2 for this resistor.
 
 So now we have:
 
-  * Vin max = 18V (for exmaple)
+  * Vin max = 18V (for exmaple, use your own value here)
   * R2 = 8k2
 
 Now let's use an [EIR table][3] to solve for all voltage, current and resistor
@@ -82,11 +82,16 @@ values in the divider circuit. This is what we know so far:
 |**I**|        |        |         |
 |**R**|        |    8k2 |         |
 
+**Note** that the resistor voltages are aproximations at this stage, and will
+only be properly calculated once we know the actual resistor value we will be
+using for R1. The resistor value must be the closest standard value we can get
+based on the ideal value calculated below.
+
 From here we can calculate the current through R2:
 
   Ir2 = Vr2/R2 = 5/8k3 = 0.625mA
 
-Since the same current flows through R1, we can calculate the value for R1
+Since the same current flows through R1, we can calculate the ideal value for R1
 
   R1 = Vr1/Ir1 = 13/0.625mA = 20.8k
 
@@ -113,8 +118,8 @@ From this table, the following is clear:
 
 Measurement code and calculations
 ---------------------------------
-When using a properly designed voltage divider as above, the following should be
-true:
+When using a properly designed voltage divider as above, the following facts are
+known:
 
   * The input voltage to the *ADC* would never exceed the maximum allowed
     voltage (as long as the Vin value was correctly specced)
