@@ -72,12 +72,12 @@ voltage. When in doubt, rather allow for a slightly larger Vin max value and loo
 a tiny bit of accuracy that loosing an *Arduino*!
 
 Start by selecting a value for R2 less than 10k, but still high enough to minimize
-the current through the divider. A value between 4k7 and 8k2 should be goog for this
+the current through the divider. A value between 4k7 and 8k2 should be good for this
 resistor.
 
 So now we have:
 
-  * Vin max = 18V (for exmaple, use your own value here)
+  * Vin max = 18V (for example, use your own value here)
   * R2 = 8k2
 
 Now let's use an [EIR table][3] to solve for all voltage, current and resistor
@@ -89,7 +89,7 @@ values in the divider circuit. This is what we know so far:
 |**I**|        |        |         |
 |**R**|        |    8k2 |         |
 
-**Note** that the resistor voltages are aproximations at this stage, and will
+**Note** that the resistor voltages are approximations at this stage, and will
 only be properly calculated once we know the actual resistor value we will be
 using for R1. The resistor value must be the closest standard value we can get
 based on the ideal value calculated below.
@@ -115,7 +115,7 @@ the value for R1 and can now complete the **EIR** table with the correct values:
 From this table, the following is clear:
 
   * The total current through the divider is less than 600&micro;A - acceptable
-  * Total power disipation is less than 11mW
+  * Total power dissipation is less than 11mW
   * The resistor power ratings can be as low as 1/8W
   * We have a slight margin (2.3% actually) that Vin can go higher than expected
     due to Vout (Vr2) only being 4.887V and not a full 5V.
@@ -179,12 +179,59 @@ calculations altogether, is to use milliVolt instead of Volt:
 ```
       Ain x Vcc x 1000 x (R1 + R2)
 Vin = ----------------------------
-         1024  x  1000  x  R2
+              1024  x  R2
 ```
 
 When doing this, the division can be integer division and the accuracy would still
-be to the closest milliVolt without using floting point values and avoiding any
-further rounding errors.
+be to the closest milliVolt without using floating point values and avoiding any
+further rounding errors. But in this case integer overflow is especially easy, so
+let's examine how best to accomplish this.
+
+Looking at a possible worst case scenario that will give us the largest values and
+the easiest possibility of overflow, let's assume:
+
+  * **Vcc**: 5.3V and when using the x1000 to convert to milliVolt: **5300**
+  * **R1 and R2**: 27k and 9k2 - using high values here for a ratio of ~1:3 - giving
+    a max input voltage (assuming 5V supply voltage) of 5V + 3*5V = ~20V
+  * **Ain**: 1023 when Vin is at it's max.
+
+The numerator:
+
+    = Ain x Vcc x 1000 x (R1 + R2)
+    = 1023 x 5.2 x 1000 x (27k + 9k2)
+    = 1023 x 5200 x 36200
+    = 192.56952e9
+
+The largest value for an unsigned long (32 bit) integer is:
+
+    2^32 = 4.294e9
+
+way smaller than what we calculated above!
+
+With the resistor values in k-ohm and probably always only accurate to thousand
+ohm, we can reduce the divider resistor values top and bottom by 100:
+
+    = Ain x Vcc x 1000 x (R1 + R2)/100
+    = 1023 x 5.2 x 1000 x (27k + 9k2)/100
+    = 1023 x 5200 x 362
+    = 1.9256952e9
+
+now it fits in a 32 bit int :-)
+
+For the denominator:
+
+    = 1024 * R2/100
+    = 1024 * 9k2/100
+    = 1024 * 92
+    = 94208
+
+Therefore:
+
+          1.9256952e9
+    Vin = -----------
+            94208
+        = 20440mV
+
 
 ------------------------------------------------------------------------------
 
