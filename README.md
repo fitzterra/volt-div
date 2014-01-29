@@ -51,7 +51,13 @@ should be taken into account:
     should be as close as possible to +5V to obtain the best resolution readings
     for the voltage measurement. The ADC has a 10-bit resolution for a total of
     1024 possible step values (2<sup>10</sup>) between 0V and 5V, or a voltage
-    value of (5v/1024) 4.88mV per step.
+    value of (5v/1024) 4.88mV per step.... but see below.
+  * The Arduino supply voltage is not always guaranteed to be exactly 5V and
+    will depend on the supply source (USB, batteries, other). Since the analog
+    value depends on the supply voltage, calculating an accurate voltage value
+    from the analog input value requires the actual supply voltage to be known.
+    [See here][4] for a method that can be used to for the Arduino to accurately
+    measure it's own supply voltage.
 
 Design
 ------
@@ -61,12 +67,13 @@ here.
 
 Since the divider values will be calculated to get Vout as close as possible to
 5V with Vin at it's max value, it is possible that Vout will go above the max
-allowed ADC input value of 5V should Vin exceed the max expected voltage. When
-in doubt, rather allow for a slightly larger Vin max value and loose a tiny bit
-of accuracy that loosing an *Arduino*!
+allowed ADC input value of 5V (or rather Vcc) should Vin exceed the max expected
+voltage. When in doubt, rather allow for a slightly larger Vin max value and loose
+a tiny bit of accuracy that loosing an *Arduino*!
 
 Start by selecting a value for R2 less than 10k, but still high enough to minimize
-the current through the divider. I normally use a value of 8k2 for this resistor.
+the current through the divider. A value between 4k7 and 8k2 should be goog for this
+resistor.
 
 So now we have:
 
@@ -130,7 +137,7 @@ The equation for calculating the actual Vout voltage value based on the 10-bit
 ADC reading at Vout is:
 
 ```
-             Vr2
+             Vcc
 Vout = Ain x ----
              1024
 ```
@@ -138,7 +145,7 @@ Vout = Ain x ----
 where:
 
   * **Ain** = the analog input value read from the ADC
-  * **Vr2** = the max expected Vr2 value (4.887V in this case)
+  * **Vcc** = the supply voltage at the time of the reading (~5V)
   * **1024** = the ADC resolution
 
 The equation for calculating Vin from Vout is based on the resistor ratio:
@@ -148,33 +155,40 @@ The equation for calculating Vin from Vout is based on the resistor ratio:
 Vin = Vout x -------
                 R2
 ```
-By substitution and simplification of the above 2 equations, we can derive the
-following equation for finding Vin based on the max Vin value we specified above
-and the analog value read from the ADC:
+
+Combining these equations into one, we get:
 
 ```
-      Ain x Vmax    
-Vin = -----------
-         1024
+      Ain x Vcc x (R1 + R2)
+Vin = ---------------------
+          1024  x  R2
 ```
-
-where:
-
-  * **Ain** = the analog input value read from the ADC
-  * **Vmax** = the max expected Vin value (18V in this case)
-  * **1024** = the ADC resolution
 
 **Note**:
 Since floating point calculations are expensive and could cause inaccuracies in
 certain circumstances, and also to avoid multiple roundings which could also
-reduce accuracy, it is suggested that Vin be calculated by first multiplying Ain
-by Vmax and then dividing the result by 1024.0 (note the trailing .0). The final
-value will be a floating point value representing the value for Vin with the
-minimum loss of accuracy through multiple roundings and floating point
-calculations.
+reduce accuracy, it would be better to use integer math to calculate the numerator
+and denominator seperately, and then do the division.
+Care must be taken to prevent integer overflows in this case though, since the
+calculated values could be quite large.
+
+Another option to still maintain a fair level of accuracy and avoid floating point
+calculations altogether, is to use milliVolt instead of Volt:
+
+
+```
+      Ain x Vcc x 1000 x (R1 + R2)
+Vin = ----------------------------
+         1024  x  1000  x  R2
+```
+
+When doing this, the division can be integer division and the accuracy would still
+be to the closest milliVolt without using floting point values and avoiding any
+further rounding errors.
 
 ------------------------------------------------------------------------------
 
 [1]: http://forum.arduino.cc/index.php/topic,13395.0.html
 [2]: http://forum.arduino.cc/index.php/topic,15631.0.html
 [3]: http://www.allaboutcircuits.com/vol_1/chpt_5/2.html
+[4]: https://code.google.com/p/tinkerit/wiki/SecretVoltmeter
